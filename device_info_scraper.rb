@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'capybara'
 require 'capybara/dsl'
+require 'date'
 require_relative 'scraper_error.rb'
 
 class DeviceInfoScraper
@@ -14,13 +15,13 @@ class DeviceInfoScraper
     Capybara.default_driver = :selenium
   end
 
-  def scrape_info_by_imei
+  def scrape_expiration_date
     visit 'https://selfsolve.apple.com/agreementWarrantyDynamic.do'
     fill_in 'sn', with: @imei
     click_button 'Continue'
     raise ScraperError.new, WRONG_IMEI_ERROR if @imei != get_imei
 
-    get_info(%w(registration phone hardware))
+    get_expiration_date
   end
 
   private
@@ -31,7 +32,10 @@ class DeviceInfoScraper
     find(:xpath, path).text.strip if has_xpath?(path)
   end
 
-  def get_info(ids)
-    ids.map { |id| find("##{id} h3").text }
+  def get_expiration_date
+    date_regex = /Estimated Expiration Date: (\w+ \d{1,2}, \d{4})/
+    if date_str = find('#hardware-text').text[date_regex, 1]
+      Date.strptime(date_str, '%B %d, %Y')
+    end
   end
 end
